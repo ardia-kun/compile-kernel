@@ -1,192 +1,95 @@
 #!/usr/bin/env bash
-#
-# Copyright (C) 2022-2025 Kneba <abenkenary3@gmail.com>
-#
-
-# Function to show an informational message
-msg() {
-	echo
-    echo -e "\e[1;32m$*\e[0m"
-    echo
-}
-
-err() {
-    echo -e "\e[1;41m$*\e[0m"
-}
-
-cdir() {
-	cd "$1" 2>/dev/null || \
-		err "The directory $1 doesn't exists !"
-}
-
-# Main
-MainPath="$(pwd)"
-MainClangPath="${MainPath}/clang"
-ClangPath=${MainClangPath}
-GCCaPath="${MainPath}/GCC64"
-GCCbPath="${MainPath}/GCC32"
-
-# Identity
-KERNELNAME=TOM
-KERNEL_DEFCONFIG=X01BD_defconfig
-VARIANT=HMP
-VERSION=CLO-X01BD
-
-# Clone Kernel Source
-git clone --depth=1 https://$AWAL:$AKHIR@github.com/strongreasons/android_kernel_asus_sdm660 -b hook --single-branch $DEVICE_CODENAME
-#git clone --depth=1 --recursive https://$AWAL:$AKHIR@github.com/Tiktodz/android_kernel_asus_sdm636 -b clotzy --single-branch $DEVICE_CODENAME
-
-# Show manufacturer info
-MANUFACTURERINFO="ASUSTek Computer Inc."
-
-# Set a commit head
-COMMIT_HEAD=$(git log --pretty=format:'%s' -n1)
-
-# Clone AOSP Clang
-ClangPath=${MainClangPath}
-[[ "$(pwd)" != "${MainPath}" ]] && cd "${MainPath}"
-mkdir $ClangPath
-rm -rf $ClangPath/*
-#git clone --depth=1 https://github.com/crdroidandroid/android_prebuilts_clang_host_linux-x86_clang-5696680 $ClangPath
-git clone --depth=1 https://github.com/picasso09/clang-9.0.3-r353983c1 $ClangPath
-
-# Clone GCC
-mkdir $GCCaPath
-mkdir $GCCbPath
-wget -q https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r16.tar.gz -O "gcc64.tar.gz"
-tar -xf gcc64.tar.gz -C $GCCaPath
-wget -q https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r16.tar.gz -O "gcc32.tar.gz"
-tar -xf gcc32.tar.gz -C $GCCbPath
-
-# Prepare
-KERNEL_ROOTDIR=$(pwd)/$DEVICE_CODENAME # IMPORTANT ! Fill with your kernel source root directory.
-export LD=ld.lld
-export KBUILD_BUILD_USER=hanaqueen # Change with your own name or else.
-export KBUILD_BUILD_HOST=$(cat /etc/hostname) # Change with your own name or else.
-IMAGE=$(pwd)/$DEVICE_CODENAME/out/arch/arm64/boot/Image.gz-dtb
-CLANG_VER="$("$ClangPath"/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
-LLD_VER="$("$ClangPath"/bin/ld.lld --version | head -n 1)"
-export KBUILD_COMPILER_STRING="$CLANG_VER with $LLD_VER"
-DATE=$(date +"%d%m%Y")
-DATE2=$(date +"%d%m%Y"-%H%M)
+echo "Cloning dependencies"
+git clone --depth=1 https://github.com/ardia-kun/kernel_xiaomi_surya_ten -b ten --single-branch --no-tags kernel
+cd kernel
+#git clone --depth=1 https://github.com/KudProject/aarch64-linux-android-4.9.git gcc64
+#git clone --depth=1 https://github.com/KudProject/arm-linux-androideabi-4.9.git gcc32
+git clone --depth=1 https://github.com/picasso09/clang-9.0.3-r353983c1 clang
+rm -rf AnyKernel
+git clone --depth=1 https://github.com/stormbreaker-project/AnyKernel3 -b surya AnyKernel
+git clone --depth=1 https://android.googlesource.com/platform/system/libufdt libufdt
+echo "Done"
+IMAGE=$(pwd)/out/arch/arm64/boot/Image.gz-dtb
+TANGGAL=$(date +"%F-%S")
+LOG=$(echo *.log)
 START=$(date +"%s")
+export CONFIG_PATH=$PWD/arch/arm64/configs/surya_defconfig
+TC_DIR=${PWD}
+GCC64_DIR="${PWD}/gcc64"
+GCC32_DIR="${PWD}/gcc32"
+CLANG_DIR="${PWD}/clang"
+KBUILD_COMPILER_STRING=$("$CLANG_DIR"/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
+PATH="$CLANG_DIR/bin/:$PATH"
+#PATH="$GCC64_DIR/bin/:$GCC32_DIR/bin/:/usr/bin:$PATH"
+CHATID=-1001200423387
+BOTTOKEN=1806647024:AAEv-Nx38_a5r7LDyaZwWqa_xxeidj-MKaQ
+export ARCH=arm64
+export PATH KBUILD_COMPILER_STRING
+export KBUILD_BUILD_HOST="google.cloud"
+export KBUILD_BUILD_USER="queen"
 
-# Java
-command -v java > /dev/null 2>&1
-
-# Check Kernel Version
-KERVER=$(cd $KERNEL_ROOTDIR; make kernelversion)
-
-# Telegram
-export BOT_MSG_URL="https://api.telegram.org/bot$TG_TOKEN/sendMessage"
-
-# Telegram messaging
-tg_post_msg() {
-  curl -s -X POST "$BOT_MSG_URL" -d chat_id="$TG_CHAT_ID" \
-    -d "disable_web_page_preview=true" \
-    -d "parse_mode=html" \
-    -d text="$1"
+# sticker plox
+function sticker() {
+    curl -s -X POST "https://api.telegram.org/bot$BOTTOKEN/sendSticker" \
+        -d sticker="CAADBQADVAADaEQ4KS3kDsr-OWAUFgQ" \
+        -d chat_id=$CHATID
 }
-
-# Compile time
-compile(){
-cd ${KERNEL_ROOTDIR}
-# Additional command (if you're lazy to commit :v)
-curl -LSs "https://raw.githubusercontent.com/Sorayukii/KernelSU-Next/stable/kernel/setup.sh" | bash -s hookless
-sed -i 's/CONFIG_LOCALVERSION=.*/CONFIG_LOCALVERSION="-TOM-969"/g' arch/arm64/configs/$KERNEL_DEFCONFIG
-export HASH_HEAD=$(git rev-parse --short HEAD)
-export COMMIT_HEAD=$(git log --oneline -1)
-make -j$(nproc) O=out ARCH=arm64 $KERNEL_DEFCONFIG
-make -j$(nproc) ARCH=arm64 O=out \
-    LD_LIBRARY_PATH="${ClangPath}/lib64:${LD_LIBRARY_PATH}" \
-    PATH=$ClangPath/bin:$GCCaPath/bin:$GCCbPath/bin:/usr/bin:${PATH} \
-    CC=${ClangPath}/bin/clang \
-    NM=${ClangPath}/bin/llvm-nm \
-    CXX=${ClangPath}/bin/clang++ \
-    AR=${ClangPath}/bin/llvm-ar \
-    STRIP=${ClangPath}/bin/llvm-strip \
-    OBJCOPY=${ClangPath}/bin/llvm-objcopy \
-    OBJDUMP=${ClangPath}/bin/llvm-objdump \
-    OBJSIZE=${ClangPath}/bin/llvm-size \
-    READELF=${ClangPath}/bin/llvm-readelf \
-    CROSS_COMPILE=aarch64-linux-android- \
-    CROSS_COMPILE_ARM32=arm-linux-androideabi- \
-    CLANG_TRIPLE=aarch64-linux-gnu- \
-    HOSTAR=${ClangPath}/bin/llvm-ar \
-    HOSTCC=${ClangPath}/bin/clang \
-    HOSTCXX=${ClangPath}/bin/clang++
-
-   if ! [ -a "$IMAGE" ]; then
-	finerr
-	exit 1
-   fi
-   git clone $ANYKERNEL -b xobod AnyKernel
-   cp $IMAGE AnyKernel
+# Send info plox channel
+function sendinfo() {
+    curl -s -X POST "https://api.telegram.org/bot$BOTTOKEN/sendMessage" \
+        -d chat_id="$CHATID" \
+        -d "disable_web_page_preview=true" \
+        -d "parse_mode=html" \
+        -d text="<b>• surya-Stormbreaker Kernel •</b>%0ABuild started on <code>Circle CI</code>%0AFor device <b>Poco X3</b> (picasso)%0Abranch <code>$(git rev-parse --abbrev-ref HEAD)</code>(master)%0AUnder commit <code>$(git log --pretty=format:'"%h : %s"' -1)</code>%0AUsing compiler: <code>$KBUILD_COMPILER_STRING</code>%0AStarted on <code>$(date)</code>%0A<b>Build Status:</b> #AOSP-Alpha"
 }
-
-# Push kernel to telegram
+# Push kernel to channel
 function push() {
     cd AnyKernel
-    curl -F document="@$ZIP_FINAL.zip" "https://api.telegram.org/bot$TG_TOKEN/sendDocument" \
-        -F chat_id="$TG_CHAT_ID" \
+    ZIP=$(echo *.zip)
+    curl -F document=@$ZIP "https://api.telegram.org/bot$BOTTOKEN/sendDocument" \
+        -F chat_id="$CHATID" \
         -F "disable_web_page_preview=true" \
         -F "parse_mode=html" \
-        -F caption="✅<b>Build Done</b>
-        - <code>$((DIFF / 60)) minute(s) $((DIFF % 60)) second(s)... </code>
-
-        <b>📅 Build Date: </b>
-        -<code>$DATE</code>
-
-        <b>🐧 Linux Version: </b>
-        -<code>$KERVER</code>
-
-         <b>💿 Compiler: </b>
-        -<code>$CLANG_VER</code>
-
-        <b>📱 Device: </b>
-        -<code>$DEVICE_CODENAME x ($MANUFACTURERINFO)</code>
-
-        <b>🆑 Changelog: </b>
-        - <code>$COMMIT_HEAD</code>
-        <b></b>
-
-        <b>Ⓜ MD5: </b>
-        - <code>$MD5CHECK</code>
-        <b></b>
-        #O #Q #$VERSION #$VARIANT"
+        -F caption="Build took $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) second(s). | For <b>Poco X3 (surya)</b> | <b>Eva GCC</b>"
 }
-
-# Find Error
+# Fin Error
 function finerr() {
-    curl -s -X POST "https://api.telegram.org/bot$TG_TOKEN/sendMessage" \
-        -d chat_id="$TG_CHAT_ID" \
-        -d "disable_web_page_preview=true" \
-        -d "parse_mode=markdown" \
-        -d text="❌ I'm tired of compiling kernels, lord @TKTDS GOBLOK gan...please give lord @TKTDS motivation"
-    exit 1
+    curl -F document=@$LOG "https://api.telegram.org/bot$BOTTOKEN/sendDocument" \
+        -F chat_id="$CHATID" \
+        -F "disable_web_page_preview=true" \
+        -F "parse_mode=html" \
+        -F caption="Build logs"
 }
+# Compile plox
+function compile() {
+   make ARCH=arm64 clean O=out surya_defconfig
+   make -j4 O=out \
+   CROSS_COMPILE=aarch64-linux-gnu- \
+   CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+#   CC=$CLANG_DIR/bin/clang \
+#   AR=$CLANG_DIR/bin/llvm-ar \
+#   OBJDUMP=$CLANG_DIR/bin/llvm-objdump \
+#   STRIP==$CLANG_DIR/bin/llvm-strip \
+#   NM==$CLANG_DIR/bin/llvm-nm \
+#   OBJCOPY==$CLANG_DIR/bin/llvm-objcopy \
+   LD=ld.lld 2>&1 | tee error.log
 
+   cp out/arch/arm64/boot/Image.gz-dtb AnyKernel
+   python3 "libufdt/utils/src/mkdtboimg.py" \
+   create "out/arch/arm64/boot/dtbo.img" --page_size=4096 out/arch/arm64/boot/dts/qcom/*.dtbo
+   cp out/arch/arm64/boot/dtbo.img AnyKernel
+}
 # Zipping
 function zipping() {
     cd AnyKernel || exit 1
-    zip -r9 $KERNELNAME-$VARIANT-$VERSION-$KERVER-"$DATE" * -x .git README.md ./*placeholder anykernel-real.sh .gitignore  zipsigner* *.zip
-
-    ZIP_FINAL="$KERNELNAME-$VARIANT-$VERSION-$KERVER-$DATE"
-
-    msg "|| Signing Zip ||"
-    tg_post_msg "<code>🔑 Signing Zip file with AOSP keys..</code>"
-
-    mv $ZIP_FINAL* kernel.zip
-    curl -sLo zipsigner-3.0-dexed.jar https://github.com/Magisk-Modules-Repo/zipsigner/raw/master/bin/zipsigner-3.0-dexed.jar
-    java -jar zipsigner-3.0-dexed.jar kernel.zip kernel-signed.zip
-    ZIP_FINAL="$ZIP_FINAL-signed"
-    mv kernel-signed.zip $ZIP_FINAL.zip
-    MD5CHECK=$(md5sum "$ZIP_FINAL.zip" | cut -d' ' -f1)
+    zip -r9 surya-kidz-${TANGGAL}.zip *
     cd ..
 }
-
+sticker
+sendinfo
 compile
 zipping
 END=$(date +"%s")
 DIFF=$(($END - $START))
+finerr
 push
