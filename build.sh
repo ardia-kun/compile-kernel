@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 echo "Cloning dependencies"
-git clone --depth=1 https://github.com/ardia-kun/kernel_xiaomi_surya_ten -b ten --single-branch --no-tags kernel
+git clone --depth=1 https://github.com/ardia-kun/kernel_xiaomi_surya_ten -b 10 --single-branch --no-tags kernel
 cd kernel
 #git clone --depth=1 https://github.com/KudProject/aarch64-linux-android-4.9.git gcc64
 #git clone --depth=1 https://github.com/KudProject/arm-linux-androideabi-4.9.git gcc32
