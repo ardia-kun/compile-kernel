@@ -16,15 +16,10 @@ jobs:
         run: pacman -Sy --noconfirm sudo && sudo pacman -Sy --noconfirm base-devel bc bison ccache jdk-openjdk ncurses libelf python ca-certificates curl flex clang gcc git wget zip zstd make openssl tzdata
       - name: Build Kernel
         env:
-          TOKEN: ${{ secrets.TOKEN }}
-          USERNAME: ${{ secrets.USERNAME }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           TG_TOKEN: ${{ secrets.TG_TOKEN }}
           KERNEL_DEFCONFIG: ${{ secrets.KERNEL_DEFCONFIG }}
           DEVICE_CODENAME: ${{ secrets.DEVICE_CODENAME }}
-          ANYKERNEL: ${{ secrets.ANYKERNEL }}
-          AWAL: ${{ secrets.AWAL }}
-          AKHIR: ${{ secrets.AKHIR }}
         run: |
           export token=${TG_TOKEN}
           export git=${TOKEN}
